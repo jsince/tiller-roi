@@ -24,4 +24,4 @@ All inputs automatically persist to `localStorage`, so refreshing the page keeps
 2. Add shareable URLs by serializing state to `window.location.hash` or a lightweight backend.  
 3. Layer in charts (bar for revenue impact, waterfall, and line for payback) using a ~10KB charting micro-lib or SVGs.  
 4. Add inline warnings when conversion rates exceed typical bounds (>30% sitewide, >60% stage conversion).  
-5. Prefill scenarios by industry benchmarks (enterprise SaaS, PLG, etc.) to make onboarding faster.  
+5. Prefill scenarios by industry benchmarks (enterprise SaaS, PLG, etc.) to make onboarding faster.
