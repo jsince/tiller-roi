@@ -53,7 +53,7 @@ git commit -m "Add feature description or Fix issue description"
 git push origin main
 ```
 
-Your credentials are already stored, so you won't be prompted for username/password.
+**Authentication:** SSH keys are configured, so you won't be prompted for username/password. The repository uses SSH authentication for secure, passwordless pushes.
 
 ### 5. Deploy to GitHub Pages (Automatic)
 Once you push to `main`, GitHub Pages will automatically:
@@ -101,6 +101,7 @@ git push origin main
 - **Commit often:** Make small, focused commits with clear messages
 - **Check deployment:** Visit the Actions tab on GitHub to see deployment status
 - **Rollback if needed:** If something breaks, you can revert commits or change the Pages source branch
+- **SSH Authentication:** This repository uses SSH keys for secure authentication. No passwords or tokens needed!
 
 ---
 
@@ -108,7 +109,8 @@ git push origin main
 
 **If push fails:**
 - Check your internet connection
-- Verify credentials are stored: `git config --global credential.helper`
+- Verify SSH connection: `ssh -T git@github.com` (should show "Hi jsince! You've successfully authenticated")
+- Check remote URL: `git remote -v` (should show `git@github.com:jsince/tiller-roi.git`)
 - Try: `git push origin main` again
 
 **If site doesn't update:**
