@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tiller Website ROI Calculator</title>
+    <meta
+      name="description"
+      content="Model CRO experiments and redesign scenarios to understand the revenue, pipeline, ROI, and payback impact of your website investments."
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="hero">
+      <div class="hero__content">
+        <p class="eyebrow">Tiller Resource</p>
+        <h1>Website ROI Calculator</h1>
+        <p>
+          Model CRO experimentation tracks or full redesign programs across up to three scenarios.
+          Plug in your baseline funnel metrics, layer on the uplifts you expect, and instantly see
+          the revenue, gross profit, ROI, and payback outlook across 12 and 24 month horizons.
+        </p>
+        <div class="hero__cta">
+          <button class="ghost" data-action="show-math">Show the math</button>
+          <button class="primary" data-action="export">Export CSV</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="calculator" data-app-root>
+      <section class="panel">
+        <div class="panel__header">
+          <h2>Scenario focus</h2>
+          <p>Toggle between CRO experiments and holistic redesign assumptions. We calculate both but you can focus outputs on 12 or 24 months.</p>
+        </div>
+        <div class="focus-controls">
+          <div class="focus-group">
+            <h3 class="focus-group__title">Scenarios</h3>
+            <div class="tabs" data-tab-group>
+              <button class="tab is-active" data-tab="cro">CRO Experiments</button>
+              <button class="tab" data-tab="redesign">Redesign Program</button>
+            </div>
+          </div>
+          <div class="focus-group">
+            <h3 class="focus-group__title">Time horizon</h3>
+            <div class="horizon-toggle" role="radiogroup">
+              <button class="chip is-active" data-horizon="12">12 months</button>
+              <button class="chip" data-horizon="24">24 months</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel__header">
+          <h2>Baseline funnel</h2>
+          <p>These inputs power both tabs. We autosave everything to your browser.</p>
+        </div>
+        <form id="baseline-form" class="grid grid--baseline"></form>
+      </section>
+
+      <section class="panel results-panel">
+        <div class="panel__header">
+          <div class="results-header">
+            <div>
+              <h2>Results</h2>
+              <p>Revenue and ROI include gross margin. Click recalculate after updating inputs.</p>
+            </div>
+            <button class="primary" id="recalculate-btn" data-action="recalculate">Recalculate</button>
+          </div>
+        </div>
+        <div id="kpi-cards" class="kpi-grid"></div>
+
+        <div class="panel__subheader">
+          <h3>Pipeline waterfall</h3>
+          <p>See visits all the way through closed-won for baseline vs each scenario.</p>
+        </div>
+        <div id="waterfall-table" class="table-wrapper"></div>
+
+        <div class="panel__subheader">
+          <h3>Sensitivity (±10%)</h3>
+          <p>Quick stress test on traffic, conversion rate, and win rate.</p>
+        </div>
+        <div id="sensitivity" class="table-wrapper"></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel__header">
+          <h2>Scenario assumptions</h2>
+          <p>Model up to three side-by-side scenarios. Rename columns to fit your narrative.</p>
+        </div>
+        <div id="scenarios" class="scenario-grid"></div>
+        <div class="panel__footer hint">
+          Need inspiration? Hover the &ldquo;What affects this&rdquo; tip next to each lever for ideas.
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel__header">
+          <h2>Disclaimers & tips</h2>
+        </div>
+        <ul class="tips">
+          <li>Model is directional and meant for planning, not a GAAP forecast.</li>
+          <li>
+            &ldquo;Sourced vs influenced&rdquo; split is for reporting only - we never double count pipeline.
+          </li>
+          <li>
+            Typical enterprise websites convert between 0.5-3% overall; wins often land in the 15-35%
+            range for sales-qualified opportunities.
+          </li>
+          <li>Payback uses incremental gross profit versus cumulative one-time and monthly costs.</li>
+        </ul>
+      </section>
+    </main>
+
+    <dialog id="math-modal">
+      <form method="dialog">
+        <h2>Behind the math</h2>
+        <p>
+          We follow a simple full-funnel approach: visits → form fills → SQLs → Opps → Wins. Each
+          stage is multiplied by the conversion rates above. Costs include one-time investments plus
+          monthly retainers across the selected horizon. ROI is incremental gross profit minus total
+          cost, divided by total cost. Payback finds the first month where incremental profit catches
+          up to spend.
+        </p>
+        <button class="primary" value="close">Got it</button>
+      </form>
+    </dialog>
+
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>
