@@ -143,6 +143,45 @@ button {
   gap: 1rem;
 }
 
+/* ARPU field with inline period toggle */
+.field--with-toggle .field__label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.field--with-toggle label {
+  margin: 0;
+}
+
+.mini-toggle {
+  display: inline-flex;
+  gap: 0.25rem;
+}
+
+.mini-chip {
+  border-radius: 999px;
+  padding: 0.2rem 0.5rem;
+  border: 1px solid var(--border);
+  background: #fff;
+  font-weight: 600;
+  font-size: 0.7rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.mini-chip:hover {
+  border-color: var(--brand);
+}
+
+.mini-chip.is-active {
+  border-color: var(--brand);
+  background: var(--brand);
+  color: #fff;
+}
+
 .panel__footer {
   margin-top: 1rem;
   font-size: 0.85rem;

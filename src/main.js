@@ -51,13 +51,23 @@ const baselineFields = [
     hint: "Calculated from opportunities forecast."
   },
   {
-    id: "acv",
-    label: "Average contract value (USD)",
+    id: "arpu",
+    label: "Avg revenue per customer",
     kind: "currency",
     min: 0,
-    step: 1000,
-    default: 42000,
-    hint: "If unsure, use the most common deal size."
+    step: 100,
+    default: 3500,
+    hint: "Monthly or annual recurring revenue per customer."
+  },
+  {
+    id: "lifespanMonths",
+    label: "Avg customer lifespan",
+    kind: "number",
+    min: 1,
+    max: 120,
+    step: 1,
+    default: 36,
+    hint: "How long customers typically stay (in months)."
   },
   {
     id: "gm",
@@ -68,16 +78,6 @@ const baselineFields = [
     step: 1,
     default: 75,
     hint: "Needed for ROI math. SaaS averages 70-85%."
-  },
-  {
-    id: "sourcedShare",
-    label: "Attribution split: % sourced",
-    kind: "percent",
-    min: 0,
-    max: 100,
-    step: 1,
-    default: 60,
-    hint: "Rest is treated as influenced pipeline."
   }
 ];
 
@@ -196,16 +196,6 @@ const scenarioLevers = {
       min: 0,
       step: 500,
       default: 15000
-    },
-    {
-      id: "pageSpeed",
-      label: "Page speed delta (LCP ms)",
-      kind: "number",
-      min: -2000,
-      max: 2000,
-      step: 50,
-      default: -500,
-      hint: "Optional; use to capture broader UX gains."
     }
   ]
 };
@@ -266,6 +256,7 @@ function loadState() {
   const baseState = {
     tab: "cro",
     horizon: 12,
+    inputPeriod: "monthly",
     baseline: { ...defaultBaseline },
     scenarios: {
       cro: defaultScenarios.cro.map((s) => ({ ...s, levers: { ...s.levers } })),
@@ -283,6 +274,7 @@ function loadState() {
     return {
       tab: stored.tab === "redesign" ? "redesign" : "cro",
       horizon: stored.horizon === 24 ? 24 : 12,
+      inputPeriod: stored.inputPeriod === "annual" ? "annual" : "monthly",
       baseline: { ...baseState.baseline, ...stored.baseline },
       scenarios: {
         cro: mergeScenarioArrays(baseState.scenarios.cro, stored.scenarios?.cro),
@@ -340,6 +332,36 @@ function renderBaselineForm() {
           : field.id === "traffic"
           ? "sessions"
           : "";
+
+      // Special rendering for ARPU field with inline period toggle
+      if (field.id === "arpu") {
+        const isMonthly = state.inputPeriod === "monthly";
+        const hint = isMonthly ? "MRR per customer" : "ARR per customer (÷12 for LTV)";
+        return `
+          <div class="field field--with-toggle">
+            <div class="field__label-row">
+              <label for="${field.id}">Revenue per customer</label>
+              <div class="mini-toggle" role="radiogroup">
+                <button type="button" class="mini-chip ${isMonthly ? "is-active" : ""}" data-period="monthly">Mo</button>
+                <button type="button" class="mini-chip ${!isMonthly ? "is-active" : ""}" data-period="annual">Yr</button>
+              </div>
+            </div>
+            <input
+              id="${field.id}"
+              type="number"
+              inputmode="decimal"
+              min="${field.min ?? 0}"
+              step="${field.step ?? 1}"
+              value="${displayValue}"
+              data-baseline-field="${field.id}"
+              data-kind="${field.kind}"
+              aria-label="Revenue per customer"
+            />
+            <small>${hint}</small>
+          </div>
+        `;
+      }
+
       return `
         <div class="field">
           <label for="${field.id}">
@@ -461,15 +483,18 @@ function renderLeverControl(scenario, idx, lever) {
   `;
 }
 
-function runFunnel(inputs, horizon) {
+function runFunnel(inputs, horizon, inputPeriod = "monthly") {
   const visits = Math.max(inputs.traffic, 0) * horizon;
   const forms = visits * clamp(inputs.cvr, 0, 0.8);
   const sqls = forms * clamp(inputs.fsql, 0, 1);
   const opps = sqls * clamp(inputs.s2o, 0, 1);
   const wins = opps * clamp(inputs.win, 0, 1);
-  const revenue = wins * Math.max(inputs.acv, 0);
+  // Convert ARPU to monthly if entered as annual
+  const monthlyArpu = inputPeriod === "annual" ? inputs.arpu / 12 : inputs.arpu;
+  const ltv = monthlyArpu * Math.max(inputs.lifespanMonths, 1);
+  const revenue = wins * ltv;
   const grossProfit = revenue * clamp(inputs.gm, 0, 1);
-  return { visits, forms, sqls, opps, wins, revenue, grossProfit };
+  return { visits, forms, sqls, opps, wins, revenue, grossProfit, ltv };
 }
 
 function deriveScenarioInputs(tab, baseline, levers, overrides = {}) {
@@ -483,7 +508,8 @@ function deriveScenarioInputs(tab, baseline, levers, overrides = {}) {
       fsql: baseline.fsql,
       s2o: baseline.s2o,
       win: clamp(baseline.win * factor("win") * overrideFactor("win"), 0, 1),
-      acv: baseline.acv,
+      arpu: baseline.arpu,
+      lifespanMonths: baseline.lifespanMonths,
       gm: baseline.gm
     };
   }
@@ -494,7 +520,8 @@ function deriveScenarioInputs(tab, baseline, levers, overrides = {}) {
     fsql: clamp(baseline.fsql * factor("fsql"), 0, 1),
     s2o: clamp(baseline.s2o * factor("s2o"), 0, 1),
     win: clamp(baseline.win * factor("win") * overrideFactor("win"), 0, 1),
-    acv: baseline.acv,
+    arpu: baseline.arpu,
+    lifespanMonths: baseline.lifespanMonths,
     gm: baseline.gm
   };
 }
@@ -516,12 +543,12 @@ function calcPayback(baseMonthly, scenarioMonthly, costOneTime, costMonthly, hor
 }
 
 function computeResults() {
-  const baselineTotals = runFunnel(state.baseline, state.horizon);
-  const baselineMonthly = runFunnel(state.baseline, 1);
+  const baselineTotals = runFunnel(state.baseline, state.horizon, state.inputPeriod);
+  const baselineMonthly = runFunnel(state.baseline, 1, state.inputPeriod);
   const scenarioResults = state.scenarios[state.tab].map((scenario) => {
     const derived = deriveScenarioInputs(state.tab, state.baseline, scenario.levers);
-    const scenarioTotals = runFunnel(derived, state.horizon);
-    const scenarioMonthly = runFunnel(derived, 1);
+    const scenarioTotals = runFunnel(derived, state.horizon, state.inputPeriod);
+    const scenarioMonthly = runFunnel(derived, 1, state.inputPeriod);
     const totalCost =
       (scenario.levers.costOneTime ?? 0) + (scenario.levers.costMonthly ?? 0) * state.horizon;
     const incrementalGP = scenarioTotals.grossProfit - baselineTotals.grossProfit;
@@ -683,10 +710,10 @@ function computeScenarioWithOverride(index, leverKey, multiplier) {
   const derived = deriveScenarioInputs(state.tab, state.baseline, scenario.levers, {
     [leverKey]: multiplier
   });
-  const totals = runFunnel(derived, state.horizon);
-  const baselineTotals = runFunnel(state.baseline, state.horizon);
-  const baselineMonthly = runFunnel(state.baseline, 1);
-  const scenarioMonthly = runFunnel(derived, 1);
+  const totals = runFunnel(derived, state.horizon, state.inputPeriod);
+  const baselineTotals = runFunnel(state.baseline, state.horizon, state.inputPeriod);
+  const baselineMonthly = runFunnel(state.baseline, 1, state.inputPeriod);
+  const scenarioMonthly = runFunnel(derived, 1, state.inputPeriod);
   const totalCost =
     (scenario.levers.costOneTime ?? 0) + (scenario.levers.costMonthly ?? 0) * state.horizon;
   const incrementalGP = totals.grossProfit - baselineTotals.grossProfit;
@@ -830,6 +857,14 @@ function handleHorizonChange(event) {
   updateUI();
 }
 
+function handlePeriodChange(event) {
+  const period = event.target.dataset.period;
+  if (!["monthly", "annual"].includes(period)) return;
+  state.inputPeriod = period;
+  persistState();
+  updateUI();
+}
+
 function handleRecalculate() {
   // Ensure we're using the current tab's scenarios
   updateResults();
@@ -926,6 +961,7 @@ function handleExport() {
 function init() {
   updateUI();
   baselineForm.addEventListener("input", handleBaselineInput);
+  baselineForm.addEventListener("click", handlePeriodChange);
   scenariosContainer.addEventListener("input", handleScenarioInput);
   scenariosContainer.addEventListener("change", handleScenarioNameChange);
   tabGroup.addEventListener("click", handleTabChange);
