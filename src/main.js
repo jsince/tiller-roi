@@ -112,22 +112,6 @@ const scenarioLevers = {
       step: 1,
       default: 5,
       tip: "Demo quality, proof, better qualification."
-    },
-    {
-      id: "costOneTime",
-      label: "Project cost (one-time)",
-      kind: "currency",
-      min: 0,
-      step: 1000,
-      default: 30000
-    },
-    {
-      id: "costMonthly",
-      label: "Ongoing monthly cost",
-      kind: "currency",
-      min: 0,
-      step: 500,
-      default: 6000
     }
   ],
   redesign: [
@@ -180,22 +164,6 @@ const scenarioLevers = {
       step: 1,
       default: 5,
       tip: "Proof, case studies, urgency."
-    },
-    {
-      id: "costOneTime",
-      label: "One-time redesign investment",
-      kind: "currency",
-      min: 0,
-      step: 1000,
-      default: 120000
-    },
-    {
-      id: "costMonthly",
-      label: "Monthly operating cost",
-      kind: "currency",
-      min: 0,
-      step: 500,
-      default: 15000
     }
   ]
 };
@@ -257,6 +225,8 @@ function loadState() {
     tab: "cro",
     horizon: 12,
     inputPeriod: "monthly",
+    costOneTime: 30000,
+    costMonthly: 6000,
     baseline: { ...defaultBaseline },
     scenarios: {
       cro: defaultScenarios.cro.map((s) => ({ ...s, levers: { ...s.levers } })),
@@ -275,6 +245,8 @@ function loadState() {
       tab: stored.tab === "redesign" ? "redesign" : "cro",
       horizon: stored.horizon === 24 ? 24 : 12,
       inputPeriod: stored.inputPeriod === "annual" ? "annual" : "monthly",
+      costOneTime: stored.costOneTime ?? baseState.costOneTime,
+      costMonthly: stored.costMonthly ?? baseState.costMonthly,
       baseline: { ...baseState.baseline, ...stored.baseline },
       scenarios: {
         cro: mergeScenarioArrays(baseState.scenarios.cro, stored.scenarios?.cro),
@@ -308,6 +280,8 @@ const waterfallContainer = document.getElementById("waterfall-table");
 const sensitivityContainer = document.getElementById("sensitivity");
 const tabGroup = document.querySelector("[data-tab-group]");
 const horizonGroup = document.querySelector(".horizon-toggle");
+const costOneTimeInput = document.getElementById("costOneTime");
+const costMonthlyInput = document.getElementById("costMonthly");
 const showMathBtn = document.querySelector('[data-action="show-math"]');
 const exportBtn = document.querySelector('[data-action="export"]');
 const recalculateBtn = document.getElementById("recalculate-btn");
@@ -398,6 +372,11 @@ function renderHorizonToggle() {
   horizonGroup
     .querySelectorAll(".chip")
     .forEach((chip) => chip.classList.toggle("is-active", Number(chip.dataset.horizon) === state.horizon));
+}
+
+function renderCostInputs() {
+  if (costOneTimeInput) costOneTimeInput.value = state.costOneTime;
+  if (costMonthlyInput) costMonthlyInput.value = state.costMonthly;
 }
 
 function renderScenarioCards() {
@@ -549,16 +528,15 @@ function computeResults() {
     const derived = deriveScenarioInputs(state.tab, state.baseline, scenario.levers);
     const scenarioTotals = runFunnel(derived, state.horizon, state.inputPeriod);
     const scenarioMonthly = runFunnel(derived, 1, state.inputPeriod);
-    const totalCost =
-      (scenario.levers.costOneTime ?? 0) + (scenario.levers.costMonthly ?? 0) * state.horizon;
+    const totalCost = state.costOneTime + state.costMonthly * state.horizon;
     const incrementalGP = scenarioTotals.grossProfit - baselineTotals.grossProfit;
     const roi =
       totalCost > 0 ? (incrementalGP - totalCost) / totalCost : incrementalGP > 0 ? Infinity : null;
     const payback = calcPayback(
       baselineMonthly.grossProfit,
       scenarioMonthly.grossProfit,
-      scenario.levers.costOneTime ?? 0,
-      scenario.levers.costMonthly ?? 0,
+      state.costOneTime,
+      state.costMonthly,
       state.horizon
     );
 
@@ -714,15 +692,14 @@ function computeScenarioWithOverride(index, leverKey, multiplier) {
   const baselineTotals = runFunnel(state.baseline, state.horizon, state.inputPeriod);
   const baselineMonthly = runFunnel(state.baseline, 1, state.inputPeriod);
   const scenarioMonthly = runFunnel(derived, 1, state.inputPeriod);
-  const totalCost =
-    (scenario.levers.costOneTime ?? 0) + (scenario.levers.costMonthly ?? 0) * state.horizon;
+  const totalCost = state.costOneTime + state.costMonthly * state.horizon;
   const incrementalGP = totals.grossProfit - baselineTotals.grossProfit;
   const roi = totalCost > 0 ? (incrementalGP - totalCost) / totalCost : null;
   const payback = calcPayback(
     baselineMonthly.grossProfit,
     scenarioMonthly.grossProfit,
-    scenario.levers.costOneTime ?? 0,
-    scenario.levers.costMonthly ?? 0,
+    state.costOneTime,
+    state.costMonthly,
     state.horizon
   );
 
@@ -780,6 +757,7 @@ function updateUI() {
   const results = computeResults();
   renderTabs();
   renderHorizonToggle();
+  renderCostInputs();
   renderBaselineForm();
   renderScenarioCards();
   renderKpis(results);
@@ -863,6 +841,16 @@ function handlePeriodChange(event) {
   state.inputPeriod = period;
   persistState();
   updateUI();
+}
+
+function handleCostInput(event) {
+  const field = event.target.dataset.costField;
+  if (!field || !["costOneTime", "costMonthly"].includes(field)) return;
+  let value = Number(event.target.value);
+  if (!Number.isFinite(value) || value < 0) value = 0;
+  state[field] = value;
+  persistState();
+  markRecalculationNeeded();
 }
 
 function handleRecalculate() {
@@ -966,6 +954,12 @@ function init() {
   scenariosContainer.addEventListener("change", handleScenarioNameChange);
   tabGroup.addEventListener("click", handleTabChange);
   horizonGroup.addEventListener("click", handleHorizonChange);
+  if (costOneTimeInput) {
+    costOneTimeInput.addEventListener("input", handleCostInput);
+  }
+  if (costMonthlyInput) {
+    costMonthlyInput.addEventListener("input", handleCostInput);
+  }
   if (recalculateBtn) {
     recalculateBtn.addEventListener("click", handleRecalculate);
   }
